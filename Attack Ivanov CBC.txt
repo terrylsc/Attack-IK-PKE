@@ -1,0 +1,118 @@
+clear;
+
+q:=2;
+qm:=2^6;
+n:=qm-1;
+k:=24;
+t:=12;
+
+F<z>:=FiniteField(qm); 
+
+RandList:=function(x)
+  a:=[];
+  for i in [1..x] do
+    a[i]:=i;
+  end for;
+  seq:=[]; seqcount:=1;
+  while #seq ne x do
+    rand:=Random(1,#a);
+    seq[seqcount]:=a[rand];
+    seqcount:=seqcount+1;
+    tempa:=[];
+    for i in [1..rand-1] do
+        tempa[i]:=a[i];
+      end for;
+    if rand ne #a then
+      for i in [rand..(#a)-1] do
+        tempa[i]:=a[i+1];
+      end for;
+    end if;
+    a:=tempa;
+  end while;
+  return seq;
+end function;
+
+
+// Generate Gpub=GM
+G:=[];
+for i in [1..k*n] do
+  G[i]:=Random(F);
+end for;
+G:=Matrix(F,k,n,G);
+
+rkM:=0;
+while rkM ne n do
+  M:=[];
+  for i in [1..n*n] do
+    M[i]:=Random(F);
+  end for;
+  M:=Matrix(F,n,n,M);
+  rkM:=Rank(M);
+end while;
+
+Gpub:=G*M;
+
+// Generate Epub=WD(Cn+P)M
+rkW:=0;
+while rkW ne n do
+  W:=[];
+  for i in [1..n*n] do
+    W[i]:=Random(F);
+  end for;
+  W:=Matrix(F,n,n,W);
+  rkW:=Rank(W);
+end while;
+
+
+rkD:=0;
+while rkD ne t do
+  D:=ZeroMatrix(F,n,n);
+  for i in [1..t] do
+    D[i][i]:=Random(F);
+  end for;
+  rkD:=Rank(D);
+end while;
+RL_D:=RandList(n);
+D:=D*PermutationMatrix(F,RL_D);
+
+U:=[];
+for i in [1..n*k] do
+  U[i]:=Random(F);
+end for;
+U:=Matrix(F,n,k,U);
+Cn:=U*G;
+
+RL_P:=RandList(n);
+P:=PermutationMatrix(F,RL_P);
+
+Epub:=W*D*(Cn+P)*M;
+
+// Encryption with message mu and error e
+mu:=[];
+for i in [1..k] do
+  mu[i]:=Random(F);
+end for;
+mu:=Matrix(F,1,k,mu);
+
+e:=[];
+for i in [1..n] do
+  e[i]:=Random(F);
+end for;
+e:=Matrix(F,1,n,e);
+
+y:=mu*Gpub+e*Epub;
+
+// Attack to recover mu B^(-1)*A=Epub
+A,B:=EchelonForm(Epub);
+A_ech:=RowSubmatrixRange(A,1,t);
+
+GE:=VerticalJoin(Gpub,A_ech);
+
+// Solve y=nu*GE;
+GE_sub:=ColumnSubmatrixRange(GE,1,Rank(GE));
+y_sub:=ColumnSubmatrixRange(y,1,Rank(GE));
+nu:=y_sub*(GE_sub^(-1));
+mu_att:=ColumnSubmatrixRange(nu,1,k);
+
+mu_att eq mu;
+
